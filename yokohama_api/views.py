@@ -3,12 +3,15 @@ from __future__ import unicode_literals
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import models
+from .models import Metrics
+from .serializers import MetricsSerializer
 import socket
+import string
 
 class Connect(APIView):
     def post(self, request):
-        ip=str(request.query_params['ip'])
-        port=int(request.query_params['port'])
+        ip=str(request.data['ip'])
+        port=int(request.data['port'])
         global sock
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -25,74 +28,102 @@ class Disconnect(APIView):
 class GetInfo(APIView):
     def get(self, request):
         sock.sendall(":SYSTem:COMMunicate:REMote ON; *cls; *idn?\n")
-        response_server=sock.recv(1024)
+        response_server=sock.recv(1024)[:-2]
+        print response_server
         return Response({'data': str(response_server)})
 
 class GetMetrics(APIView):
     def get(self, request):
         sock.sendall(":READ3:POW?\n")
-        response_server=sock.recv(1024)
+        origin=sock.recv(1024)[:-2]
+        main_value = origin[:string.find(origin, 'E')]
+        degree_row = origin[string.find(origin, '+') + 1:]
+
+        counter_letters_degree = 0
+        for number in degree_row:
+            if number != '0':
+                degree_row = int(degree_row[counter_letters_degree:])
+                break
+            counter_letters_degree += 1
+
+        dbm = str(float(main_value) * 10 ** degree_row)
+        dbm = dbm[:string.find(origin, '.') + 4]
+        response_server=dbm
         return Response({'data': str(response_server)})
 
 class SetLenght(APIView):
     def post(self, request):
-	lenght=str(request.query_params['lenght'])
-	request_lenght=":SENS3:POW:WAV " + lenght + "NM\n"
+        lenght=str(request.data['lenght'])
+        request_lenght=":SENS3:POW:WAV " + lenght + "NM\n"
+        print request_lenght
         sock.sendall(request_lenght)
-	sock.sendall(":SENS3:POW:WAV?\n")
-        response_server=sock.recv(1024)
+        sock.sendall(":SENS3:POW:WAV?\n")
+        response_server=sock.recv(1024)[:-2]
         return Response({'data': str(response_server)})
 
 class SetAveraging(APIView):
     def post(self, request):
-	average=str(request.query_params['average'])
-	request_average=":SENS3:POW:ATIM " + average + "MS\n"
+        average=str(request.data['average'])
+        request_average=":SENS3:POW:ATIM " + average + "MS\n"
         sock.sendall(request_average)
-	sock.sendall(":SENS3:POW:ATIM?\n")
-        response_server=sock.recv(1024)
+        sock.sendall(":SENS3:POW:ATIM?\n")
+        response_server=sock.recv(1024)[:-2]
         return Response({'data': str(response_server)})
 
 class InfoSlots(APIView):
     def get(self, request):
-	response_server = []
+        response_server = []
         for slot_number in range(1,4):
-		print slot_number
-		command=":SLOT" + str(slot_number) + ":IDN?\n"
-		sock.sendall(command)
-        	response_server.append(sock.recv(1024))
-		print response_server
+            command=":SLOT" + str(slot_number) + ":IDN?\n"
+            sock.sendall(command)
+            response_server.append(sock.recv(1024)[:-2])
         return Response({'data': response_server})
 
 class SetDate(APIView):
     def post(self, request):
-	date=str(request.query_params['date']).replace('.',',')
-	request_date=":SYStem:DATE " + date + "\n"
+        date=str(request.data['date']).replace('.',',')
+        request_date=":SYStem:DATE " + date + "\n"
         sock.sendall(request_date)
-	sock.sendall(":SYStem:DATE?\n")
-        response_server=sock.recv(1024)
+        sock.sendall(":SYStem:DATE?\n")
+        response_server=sock.recv(1024)[:-2]
         return Response({'data': str(response_server)})
 
 class SetTime(APIView):
     def post(self, request):
-	request_time=str(request.query_params['time']).replace(':',',')
-	request_time=":SYStem:TIME " + request_time + "\n"
+        request_time=str(request.data['time']).replace(':',',')
+        request_time=":SYStem:TIME " + request_time + "\n"
         sock.sendall(request_time)
-	sock.sendall(":SYStem:Time?\n")
-        response_server=sock.recv(1024)
+        sock.sendall(":SYStem:Time?\n")
+        response_server=sock.recv(1024)[:-2]
         return Response({'data': str(response_server)})
 
 
 class CheckErrors(APIView):
     def get(self, request):
         sock.sendall(":SYSTem:ERRor?\n")
-        response_server=sock.recv(1024)
+        response_server=sock.recv(1024)[:-2]
         return Response({'data': str(response_server)})
 
 class SetOffset(APIView):
     def post(self, request):
-	offset=str(request.query_params['db'])
-	request_offset=":SENS3:CORR " + offset + "DB\n"
+        offset=str(request.data['db'])
+        request_offset=":SENS3:CORR " + offset + "DB\n"
         sock.sendall(request_offset)
-	sock.sendall(":SENS3:CORR?\n")
-        response_server=sock.recv(1024)
+        sock.sendall(":SENS3:CORR?\n")
+        response_server=sock.recv(1024)[:-2]
         return Response({'data': str(response_server)})
+
+class GetAllMetrics(APIView):
+    def get(self, request):
+        metrics = Metrics.objects.all()
+        serializer = MetricsSerializer(metrics, many=True)
+        return Response({"data": serializer.data})
+
+class AddMetric(APIView):
+    def post(self, request):
+        data_metrics = request.data.get('data_metrics')
+        # Create an article from the above data
+        serializer = MetricsSerializer(data=data_metrics)
+        if serializer.is_valid(raise_exception=True):
+            metrics_saved = serializer.save()
+        return Response({"status": "success"})

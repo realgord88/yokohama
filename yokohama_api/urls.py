@@ -13,4 +13,6 @@ urlpatterns = [
     url(r'^settime/$', views.SetTime.as_view()),
     url(r'^errors/$', views.CheckErrors.as_view()),
     url(r'^setoffset/$', views.SetOffset.as_view()),
+    url(r'^getallmetrics/$', views.GetAllMetrics.as_view()),
+    url(r'^addmetric/$', views.AddMetric.as_view()),
 ]
