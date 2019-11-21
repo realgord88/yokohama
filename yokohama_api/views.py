@@ -7,6 +7,10 @@ from .models import Metrics
 from .serializers import MetricsSerializer
 import socket
 import string
+import sys
+
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 class Connect(APIView):
     def post(self, request):
@@ -35,21 +39,17 @@ class GetInfo(APIView):
 class GetMetrics(APIView):
     def get(self, request):
         sock.sendall(":READ3:POW?\n")
-        origin=sock.recv(1024)[:-2]
-        main_value = origin[:string.find(origin, 'E')]
-        degree_row = origin[string.find(origin, '+') + 1:]
+        origin=str(sock.recv(1024))
+        sign=origin[0]
+        degree_row = origin[-1:]
+        if sign == '-':
+            degree_row = sign + degree_row
+        main_value = float(origin[1:string.find(origin, 'E')])
 
-        counter_letters_degree = 0
-        for number in degree_row:
-            if number != '0':
-                degree_row = int(degree_row[counter_letters_degree:])
-                break
-            counter_letters_degree += 1
-
-        dbm = str(float(main_value) * 10 ** degree_row)
-        dbm = dbm[:string.find(origin, '.') + 4]
-        response_server=dbm
-        return Response({'data': str(response_server)})
+        dbm = str(main_value * (10 ** int(degree_row)))
+        dbm = dbm[:string.find(dbm, '.') + 3]
+        print dbm
+        return Response({'data': str(dbm)})
 
 class SetLenght(APIView):
     def post(self, request):
