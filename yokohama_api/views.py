@@ -39,15 +39,20 @@ class GetInfo(APIView):
 class GetMetrics(APIView):
     def get(self, request):
         sock.sendall(":READ3:POW?\n")
-        origin=str(sock.recv(1024))
-        sign=origin[0]
+        origin=str(sock.recv(1024))[:-2]
+	first_sign=origin[:1]
+	print origin
+	sign=origin[string.find(origin, 'E')+1:string.find(origin, 'E')+2]
+	print sign
         degree_row = origin[-1:]
-        if sign == '-':
+        print degree_row
+	if sign == '-':
             degree_row = sign + degree_row
         main_value = float(origin[1:string.find(origin, 'E')])
-
+	print main_value
         dbm = str(main_value * (10 ** int(degree_row)))
-        dbm = dbm[:string.find(dbm, '.') + 3]
+        print dbm
+	dbm = first_sign + dbm[:string.find(dbm, '.') + 3]
         print dbm
         return Response({'data': str(dbm)})
 
