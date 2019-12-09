@@ -20,47 +20,36 @@ class Connect(APIView):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((ip, port))
+            sock.sendall(":SYSTem:COMMunicate:REMote ON; *cls; *idn?\n")
+            response_server = sock.recv(1024)[:-2]
             return Response({'status': 'connected'})
         except:
             return Response({'status': 'error'})
 
 class Disconnect(APIView):
     def get(self, request):
+        sock.sendall(":SYSTem:COMMunicate:REMote OFF; *cls; *idn?\n")
         sock.close()
         return Response({'status': 'disconnected'})
-
-class GetInfo(APIView):
-    def get(self, request):
-        sock.sendall(":SYSTem:COMMunicate:REMote ON; *cls; *idn?\n")
-        response_server=sock.recv(1024)[:-2]
-        print response_server
-        return Response({'data': str(response_server)})
 
 class GetMetrics(APIView):
     def get(self, request):
         sock.sendall(":READ3:POW?\n")
         origin=str(sock.recv(1024))[:-2]
 	first_sign=origin[:1]
-	print origin
 	sign=origin[string.find(origin, 'E')+1:string.find(origin, 'E')+2]
-	print sign
         degree_row = origin[-1:]
-        print degree_row
 	if sign == '-':
             degree_row = sign + degree_row
         main_value = float(origin[1:string.find(origin, 'E')])
-	print main_value
         dbm = str(main_value * (10 ** int(degree_row)))
-        print dbm
 	dbm = first_sign + dbm[:string.find(dbm, '.') + 3]
-        print dbm
         return Response({'data': str(dbm)})
 
 class SetLenght(APIView):
     def post(self, request):
         lenght=str(request.data['lenght'])
         request_lenght=":SENS3:POW:WAV " + lenght + "NM\n"
-        print request_lenght
         sock.sendall(request_lenght)
         sock.sendall(":SENS3:POW:WAV?\n")
         response_server=sock.recv(1024)[:-2]
